@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.8.0"><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>视频页面内存泄露的追查与解决方案（记一次 Chrome GC Bug 的发现） | GaoYYYang老司机飙车记录</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/normalize.css/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/pure-min.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/clipboard/dist/clipboard.min.js"></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.js"></script><link rel="stylesheet" href="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.css"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">视频页面内存泄露的追查与解决方案（记一次 Chrome GC Bug 的发现）</h1><a id="logo" href="/.">GaoYYYang老司机飙车记录</a><p class="description"></p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">视频页面内存泄露的追查与解决方案（记一次 Chrome GC Bug 的发现）</h1><div class="post-meta">2019-10-21<span> | </span><span class="category"><a href="/categories/问题排查/">问题排查</a></span></div><div class="post-content"><p>Chrome 通常会对未引用的 DOM 对象定期进行 GC 操作。但是在一定场景下，对 <code>video</code> 的 GC 操作会失效，已经创建的元素，及时已经没有对它引用的指针，依旧会常驻内存中，由此，在对 <code>video</code> 元素不断的销毁和创建过程中，会导致页面内存越来越大，</p>
+<h2 id="一-页面崩溃现象"><a href="#一-页面崩溃现象" class="headerlink" title="一 页面崩溃现象"></a>一 页面崩溃现象</h2><p>某线上系统页面（标配为Chrome），需要提供大量视频内容信息，但是随着视频列表的翻页，页面内存占用会逐渐升高，直至页面崩溃，运营反馈较多。</p>
+<h2 id="二-追查页面崩溃原因"><a href="#二-追查页面崩溃原因" class="headerlink" title="二 追查页面崩溃原因"></a>二 追查页面崩溃原因</h2><h3 id="1-调试环境"><a href="#1-调试环境" class="headerlink" title="1. 调试环境"></a>1. 调试环境</h3><p><strong>压测页面</strong>：一个具有 20 个视频条目的列表页面，有翻页按钮。<br><strong>压测宿主浏览器</strong>：chrome（主要），firefox（次要）。</p>
+<h3 id="2-批量整体实验"><a href="#2-批量整体实验" class="headerlink" title="2. 批量整体实验"></a>2. 批量整体实验</h3><blockquote>
+<p>批量整体实验的测试结果由 chrome 最新版 75 版本测试得出，在页面连续进行 100 次翻页后进行垃圾回收</p>
+</blockquote>
+<p>操作方法：搭建系统页面，使用脚本轮询翻页按钮状态，不间断的模拟按钮点击翻页动作</p>
+<h4 id="CPU占用情况"><a href="#CPU占用情况" class="headerlink" title="CPU占用情况"></a>CPU占用情况</h4><p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/b875a207a9604486826477a71e8325a6~noop.png" height="100" width="810"></p><br>可以看到，CPU占用率一直处在近乎100%的水平上下波动，CPU 达到极限后，页面仍旧可以正常工作，不是引发崩溃的原因<br><br>#### 内存占用情况<br>内存占用分两部分考量<br><strong>js 堆栈内存</strong>：包含 js 执行时上下文中的各种变量对象，这部分是由 V8 来进行垃圾回收<br><strong>宿主内存</strong>：这部分内存体现 dom 节点等宿主浏览器元素的体积，由浏览器进行回收，计算方法：占用总内存 - js 堆栈内存。<br><br>通过两种方式来查看这两种内存状态：<br>打开<strong>任务管理器</strong>，对比按钮提交脚本执行前后，可以看到，<br><strong>连续翻页测试执行前：系统内存占用了 274MB，其中 js 内存占用了154MB，宿主内存有 120MB</strong><br><br><p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/1b410bdc5d4d4c34a47eae343a9aed02~noop.png" width="500"></p>
+
+<p><strong>连续剧翻页测试执行后</strong>：系统内存占用了 1.1G，其中 js 内存占用了227MB，宿主内存有 870MB**</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/977b0475398c41979ae1ae832cbc1edd~noop.png" width="500"></p>
+
+<p><strong>对比可以发现：页面翻页过程运行一定次数之后，js 内存提升73MB，宿主内存增加 826 MB</strong></p>
+<p>打开 <strong>performance monitor</strong> 查看状态:<br><strong>连续翻页测试执行前</strong></p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/d80e89d6851e44ba98c4f0e93911debf~noop.png" height="83" width="203"></p>
+
+<p><strong>连续翻页测试执行后</strong></p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/d4a9d6290e4647d6952219de424878a7~noop.png" height="108" width="222"></p>
+
+<p><strong>可以看到，js heap 大小提升 71 MB，DOM节点数由1万提升到 21 万，翻了 20 倍。与任务管理器表现基本一致。<br>得出初步结论：页面性能较差，CPU占用高（应低优解决），存在较轻的 JS HEAP 内存泄漏（应低优解决），存在严重的 dom 节点泄漏（应高优解决）。</strong></p>
+<h3 id="3-单步跟踪实验"><a href="#3-单步跟踪实验" class="headerlink" title="3.单步跟踪实验"></a>3.单步跟踪实验</h3><p>根据前面发现的关键点，采用堆快照的方法进行更细致的分析。</p>
+<h4 id="a-堆快照相关概念介绍"><a href="#a-堆快照相关概念介绍" class="headerlink" title="a. 堆快照相关概念介绍"></a>a. 堆快照相关概念介绍</h4><p><strong>detached element</strong><br>游离的 dom 节点：已经从页面 dom 树移除掉，但是还存在于宿主内存中的 dom 节点<br><strong>distance</strong><br>当前节点到根节点的距离，如果某节点没有 distance，通常说明该节点即将被 gc 回收。<br><strong>shallow size</strong><br>当前节点自身的内存体积，不包含它所引用的其他对象的体积。<br><strong>retained size</strong><br>包含当前节点自身体积和所引用的其他对象体积，表示若该节点被回收，能够释放的总内存大小。</p>
+<h4 id="b-实验思路"><a href="#b-实验思路" class="headerlink" title="b.实验思路"></a>b.实验思路</h4><p>进入页面后进行 snapshot 堆快照拍摄，翻页后再次进行 snapshot 堆快照拍摄，对比分析快照结果。</p>
+<h4 id="c-页面实验分析"><a href="#c-页面实验分析" class="headerlink" title="c. 页面实验分析"></a>c. 页面实验分析</h4><p><strong>步骤一：</strong><br>初次进入页面时，进行 snapshot，查看游离的 dom 节点，图中存在 distance 的节点，代表 js heap 中依然有活动对象对它引用，导致它不能释放。：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/ac3622d9ff334420bb9497937fb56848~noop.png" height="355" width="1012"></p>
+
+<p>逐条点击 Detached HTMLDivElement，查看详情：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/6578737d1cf143e993fb7c1eb7654bde~noop.png" height="501" width="571"></p>
+
+<p>看到其中部分游离 div 节点是 watermark.js 生成，依然存在对节点的引用阻止了 gc ，我们需要 check 一下这个库是否有泄漏。</p>
+<p><strong>步骤二：</strong><br>点击翻页按钮后，进行 snap shot，查看两次快照对比：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/1c92a962c3394ca294f8e7eb975f1f29~noop.png" height="243" width="1140"></p>
+
+<p>发现 detached element 的整体数量有一个爆炸性的提升，需要对这部分新增的游离节点进行分析。<br>查看第二次 snapshot 的堆详情：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/d77efb0ec20b4d1e8694be06dc66ef64~noop.png" height="399" width="1140"></p>
+
+<p>如上图，我们发现很多游离节点（ detached elements） 没有 distance，这代表 js heap 中已经没有活动对象对该游离节点进行引用了，那么该节点应该是可以被宿主回收的。<br><strong>疑问</strong>：是不是刚才进行 snapshot 时系统尚未来得及回收？<br><strong>验证</strong>：多次手动触发垃圾回收，再次进行 snapshot ，发现这些没有 distance 的游离节点依旧存在，存在未知因素阻碍了这些游离节点的正常回收，可以判断页面的 dom 泄漏必然跟这些不能回收的游离节点有关。</p>
+<p><strong>针对这部分不能被回收的 detached element 进行重点分析：</strong><br><strong>1. 首先查看 div element 的泄漏</strong><br>单独查看堆快照中，不能释放的 Detached HTMLDivElement ，可以看到如下情况</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/0832c45f53a44650a8e5e6f81535741d~noop.png" height="499" width="1140"></p>
+
+<p>上图中的 DIV 节点被 console 信息中的变量引用导致不能得到释放，我们切到 console 控制台查看输出：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/8ea39b7ced8746ebad88d86ec782f6ce~noop.png" height="293" width="1140"></p>
+
+<p>发现大量由于数据格式错误引发的 vue 模版 render 错误栈输出，找到源码位置：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/fb69d66a9ddd4bb9ac80a4a2de3d4306~noop.png" width="310"></p>
+
+<p>禁用 console.log 一定程度的解决 div dom 泄漏问题。</p>
+<p><strong>2. 然后查看 video element 的泄漏</strong></p>
+<p>snapshot summary 面板查看 Detached HTMLVideoElement ：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/2ef90d356f5b46ab91c696818bf25bd2~noop.png" height="359" width="1140"></p>
+
+<p>发现 pending activities 列表中有对 video 的引用 （pending activities 用于存放未完成的浏览器调用过程，如网络请求等）<br>查看 pending activities内容：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/ef6048da97fa4d238ab24faf333ed3dd~noop.png" width="700"></p>
+
+<p>发现 pending activities 中存放大量 ResizeObserver 任务，这些 ResizeObserver 任务大部分为 video  shadowdom 中 div 中所注册，推测这些 ResizeObserver 任务没有得到及时的销毁，导致 video 节点不能释放</p>
+<h4 id="初步结论：-chrome-对-video-做-gc-时存在-bug-。"><a href="#初步结论：-chrome-对-video-做-gc-时存在-bug-。" class="headerlink" title="初步结论： chrome 对 video 做 gc 时存在  bug 。"></a>初步结论： chrome 对 video 做 gc 时存在  bug 。</h4><p>Chrome Bug 验证：为了排除其他页面元素的干扰，编写 bug demo <a href="https://emyvd.codesandbox.io/" target="_blank" rel="noopener">https://emyvd.codesandbox.io/</a>  进行验证，页面会简单重复进行 video 的新建与销毁，这个过程中内存占用和 dom 节点数量持续增加，直到浏览器崩溃，有严重的内存溢出现象，由此该 bug 得到证实。<br>另外，还对其他 chrome 版本和 windows / mac 下的其他浏览器进行了验证，整理结果如下：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/6f7d0837feb34c83a971d2ebb442d08d~noop.png" width="200"></p>
+
+<p>chrome 74 版本首次出现该 bug ，发布时间为四月末，与页面崩溃反馈陡增的时间相符。</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/931e95ac6dee4e20b7eec82418378981~noop.png" width="150"></p>
+
+<p>还有一个额外的发现：观察点击翻页按钮后的snapshot：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/76646084fd8c4fd28cf96f5a0cb53aaa~noop.png" height="399" width="1140"></p>
+
+<p>系统页面中只有 20 个 video element ，点击一次翻页会销毁原来的 video element，生成另外的 20 个 video，但是 detached elements 中却存在 60 个 video element，据此推测页面点击提交按钮时，系统进行了两次页面渲染。<br>验证：已经与业务同学确认，提交时会导致额外的一次视频列表渲染，额外的渲染加重了该 Chrome Video 泄露的影响。</p>
+<p>d. 补充验证<br>进行 allocation timeline 录制，可以验证如上的问题确实是因为点击翻页按钮时刷新页面引起的。<br>开始录制后，进行提交操作，结果如下：</p>
+<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/6057c8b8c8174e71bf29c75dfde69eb3~noop.png" height="227" width="663"></p>
+
+
+<h2 id="三-发现问题整理"><a href="#三-发现问题整理" class="headerlink" title="三 发现问题整理"></a>三 发现问题整理</h2><h3 id="问题1"><a href="#问题1" class="headerlink" title="问题1"></a>问题1</h3><p><strong>因 console log 输出了堆栈信息引用导致的 dom 泄漏问题</strong><br><strong>解决方案</strong><br>扫描源码中所有 console log ，控制只输出文本，不允许输出堆栈信息。</p>
+<h3 id="问题2"><a href="#问题2" class="headerlink" title="问题2"></a>问题2</h3><p><strong>chrome 75 对于 video 元素的 gc 存在 bug</strong><br><strong>解决方案</strong><br>方案1:<br>更换火狐浏览器 （跨平台性）<br>方案2:<br>封装自定义 video 组件，内部设有 video dom 资源池以实现对 video dom 的复用： video dom 被 js 从页面中移除时，节点不销毁，而是重新放回 video dom 资源池中，用于新 video 的复用。简单 demo 已经验证通过。</p>
+<h2 id="四-修复效果"><a href="#四-修复效果" class="headerlink" title="四 修复效果"></a>四 修复效果</h2><p>根据上述方案完成页面调整。</p>
+<ul>
+<li>测试线上页面提交1500次无崩溃产生</li>
+<li>原生视频组件的页面 500 次翻页操作实验数据对比如下<p class="img-tip" data-str=""><img src="https://sf3-ttcdn-tos.pstatp.com/img/tos-cn-v-0000/9b3604c096c74f548852c3bc152a2ea1~noop.png" width="400"></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</li>
+</ul>
+</div><div class="tags"><a href="/tags/chorme-gc/"><i class="fa fa-tag"></i>chorme, gc</a></div><div class="post-nav"><a class="pre" href="/2020/07/02/深度实践：提取CSS时的依赖图修正/">Webpack 深度实践：提取CSS时的依赖图修正</a><a class="next" href="/2019/06/28/npm/">你可能不知道的 npm 小规律</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"><input type="hidden" name="sitesearch" value="http://GaoYYYang.github.io"></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Webpack/">Webpack</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/知识点/">知识点</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/问题排查/">问题排查</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/npm/" style="font-size: 15px;">npm</a> <a href="/tags/webpack/" style="font-size: 15px;">webpack</a> <a href="/tags/chorme-gc/" style="font-size: 15px;">chorme, gc</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2020/07/02/深度实践：提取CSS时的依赖图修正/">Webpack 深度实践：提取CSS时的依赖图修正</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/10/21/视频页面内存泄露的追查与解决方案/">视频页面内存泄露的追查与解决方案（记一次 Chrome GC Bug 的发现）</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/06/28/npm/">你可能不知道的 npm 小规律</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/26/webpack-module-resolve/">webpack 模块解析之 commonjs 和 esModule 混用问题</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/26/webpack-tree-shaking/">Webpack 中 tree shaking 功能实现的局限性</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/18/nodejs-调用-shell-的几个坑/">nodejs 调用 shell 时应该注意的问题</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://github.com/GaoYYYang" title="Github" target="_blank">Github</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/." rel="nofollow">GaoYYYang老司机飙车记录.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.css"><script type="text/javascript" src="/js/copycode.js" successtext="复制成功!"></script><link rel="stylesheet" type="text/css" href="/css/copycode.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>

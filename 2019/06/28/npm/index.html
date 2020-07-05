@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.8.0"><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>你可能不知道的 npm 小规律 | GaoYYYang老司机飙车记录</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/normalize.css/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/pure-min.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/clipboard/dist/clipboard.min.js"></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.js"></script><link rel="stylesheet" href="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.css"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">你可能不知道的 npm 小规律</h1><a id="logo" href="/.">GaoYYYang老司机飙车记录</a><p class="description"></p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">你可能不知道的 npm 小规律</h1><div class="post-meta">2019-06-28<span> | </span><span class="category"><a href="/categories/知识点/">知识点</a></span></div><div class="post-content"><p>本文会介绍一些容易被忽视、但是非常实用的 npm 小知识点，带你从独特的角度认识每天手边常用的 npm 工具。</p>
+<ul>
+<li>容易被忽视的 <code>dist tag</code></li>
+<li>耳熟能详的npm install</li>
+<li>node_modules 的目录组织规律</li>
+<li>踩坑指南</li>
+</ul>
+<h3 id="1-容易被忽视的-dist-tag"><a href="#1-容易被忽视的-dist-tag" class="headerlink" title="1. 容易被忽视的 dist tag"></a>1. 容易被忽视的 <code>dist tag</code></h3><p><code>dist tag</code> 是一个特殊的版本标记指针</p>
+<p><strong>模块发布</strong>：每个版本号在发布时都会有一个 <code>dist tag</code> 指向它</p>
+<ul>
+<li>自定义 <code>dist tag</code> ：发布时可以指定 <code>dist tag</code> ，它可以为任何字符串（如：’alpha’，’beta’），自定义 <code>dist tag</code> 通常用于发布内部版本</li>
+<li>默认 <code>dist tag</code> 为 ‘latest’：发布时不指定 <code>dist tag</code> 时会默认 <code>dist tag</code> 为 ‘latest’，对外发布的正式版本 <code>dist tag</code> 一定是 ‘latest’</li>
+</ul>
+<p><strong>模块安装</strong>：</p>
+<ul>
+<li>自定义 <code>dist tag</code> ：<ul>
+<li>自定义 <code>dist tag</code> 的版本必须通过指定 tag name 才能安装到，形如<br>  <code>npm install modulename@tagname</code></li>
+<li>默认 <code>dist tag</code>：模块安装不指定 <code>dist tag</code> 时默认拉取 <code>dist tag</code> 为 ‘latest’ 的版本</li>
+</ul>
+</li>
+</ul>
+<p>举一只🌰：</p>
+<ul>
+<li><p>模块发布：</p>
+<p> 我们发布 PackageA 的 1.0.0-alpha 时，执行  <code>npm publish --tag alpha</code>  来发布 alpha 版本；修改版本号后，再次执行  npm publish –tag alpha  时，则 alpha 版本会指向新的版本号。</p>
+</li>
+<li><p>模块安装：</p>
+<p> 通过 npm i PackageA@alpha 来安装这个 alpha 版本 ( npm i PackageA 不能安装到该 alpha 版本)。提示：npm install PackageA 与 npm install PackageA@latest 等价。<br>gy有三个 <code>dist tag</code> 表示不同版本：latest 、docker、alpha，详情可以参考 gy 发版规范 </p>
+<h3 id="2-耳熟能详的npm-install"><a href="#2-耳熟能详的npm-install" class="headerlink" title="2. 耳熟能详的npm install"></a>2. 耳熟能详的npm install</h3><p>我们每天都在用 npm install 命令，下面分几个场景讲一下你可能会忽视的细节，让你有更清晰的认识。</p>
+</li>
+</ul>
+<p><strong>姿势</strong>：除了 install modulename，你还可以：</p>
+<ul>
+<li>install git-url：接 git 地址，较常见</li>
+<li>install folder：接本地文件目录，类似于 link 原理</li>
+<li>install tarball-file：接本地压缩包，支持.tar, .tar.gz,  .tgz</li>
+</ul>
+<p><strong>版本</strong>：</p>
+<p>npm install 安装模块时，默认安装最晚发布的版本号，而不是最大的版本号，所以不要通过发布比线上更低的版本号来进行内部测试，请使用 <code>dist tag</code>。</p>
+<p><strong>性能</strong>：</p>
+<p>该命令大部分耗时都在解析模块依赖树上，只有很小部分时间花在下载压缩包上(正常网速下)，所以只是缓存下载的 zip 包或持久化 npm 的本地缓存并不能节省很多时间。</p>
+<p><strong>场景一</strong></p>
+<ul>
+<li><strong>用法</strong>： npm install</li>
+<li><strong>适用场景</strong>：用于安装本地项目工程的所有依赖。</li>
+<li><strong>规则：</strong><ul>
+<li>命令会安装 dependencies 和 devDependencies，如果不想安装devDependencies，执行 npm install –production 即可</li>
+<li>该命令执行时会匹配 package-lock.json 信息、 package.json 信息、远程 registry信息是否一致， 会分析已有 node_modules 目录内的模块状态，按照 lock 文件中锁定的版本进行依赖安装。</li>
+</ul>
+</li>
+</ul>
+<p><strong>场景二</strong></p>
+<ul>
+<li><strong>用法</strong>： npm install PackageA</li>
+<li><strong>适用场景</strong>：安装特定的包 PackageA 到本地工程。</li>
+<li><strong>规则：</strong><ul>
+<li>该命令只安装 PackageA 的 dependencies ，而不会安装 PackageA 的 devDependencies。</li>
+<li>该命令无视工程目录中 package-lock.json 中锁定的版本，直接安装（或升级） PackageA 到 package.json 中允许的最新版（有时候并不是最大版本号），同时会向 package.json 和  package-lock.json 文件写入该模块的最新版。</li>
+</ul>
+</li>
+</ul>
+<p><strong>场景三</strong></p>
+<ul>
+<li><strong>用法</strong>： npm install -g PackageA</li>
+<li><strong>适用场景</strong>：安装特定的包 PackageA 到全局。</li>
+<li><strong>规则：</strong><ul>
+<li>该命令只安装 PackageA 的 dependencies ，而不会安装 devDependencies</li>
+<li>使用 n 管理 node 版本的情况，packageA 模块是安装到系统全局目录中<ul>
+<li>优点：纯 js 模块在不同 nodejs 版本下无需再次安装</li>
+<li>缺点：模块如果含有一些 c 模块，nodejs 版本切换时可能需要重新安装该模块，如 node-sass。</li>
+</ul>
+</li>
+<li>对于 nvm 管理的模块，会把 packageA 安装到当前 nodejs 版本所在目录中，优缺点跟 n 正好相反。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-node-modules-的目录组织规律"><a href="#3-node-modules-的目录组织规律" class="headerlink" title="3. node_modules 的目录组织规律"></a>3. node_modules 的目录组织规律</h3><p>新版的 npm ，工程的所有依赖 （包括依赖的下级依赖）都会被安装到 node_modules 根目录下以最大可能复用模块。<br>但是，如有项目工程目录的 package.json 如下：<br>// package.json<br>{<br>    “name”: “project”,<br>    “dependencies”: {<br>        “B”: “0.0.3” // B中存在依赖 <a href="mailto:A@0.0.1" target="_blank" rel="noopener">A@0.0.1</a><br>      },<br>      “devDependencies”: {<br>        “A”: “0.0.2”<br>      }<br>}</p>
+<ul>
+<li>模块 B 的 package.json 如下：<br>{<pre><code>&quot;name&quot;: &quot;B&quot;,
+&quot;dependencies&quot;: {
+  &quot;A&quot;: &quot;0.0.1&quot;
+}
+</code></pre>}<br>工程根目录执行 npm install  时，得到如下目录<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">project</span><br><span class="line">├──package.json</span><br><span class="line">├──node_modules  // 第一级</span><br><span class="line">    ├── A@0.0.2</span><br><span class="line">    ├── B</span><br><span class="line">        ├── node_modules // 第二级</span><br><span class="line">            ├── A@0.0.1</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>可以看到模块 A 同时被 project 的 devDependencies和 B 模块的 dependencies引用，且引用的版本不同，所以会安装两份 A ，project 依赖的 <a href="mailto:A@0.0.2" target="_blank" rel="noopener">A@0.0.2</a> 安装在工程的 node_moduels 根目录中，B 模块依赖的 <a href="mailto:A@0.0.1" target="_blank" rel="noopener">A@0.0.1</a> 安装在自己目录下层的 node_modules 中。</p>
+<p>工程根目录执行 npm install –production  对比结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">project</span><br><span class="line">├──package.json</span><br><span class="line">├──node_modules  // 第一级</span><br><span class="line">    ├── B</span><br><span class="line">        ├── node_modules // 第二级</span><br><span class="line">            ├── A@0.0.1</span><br></pre></td></tr></table></figure></p>
+<p>可以看到，虽然通过 <code>--production</code> 指令，在安装 project 的依赖时过滤了 devDependencies 中模块 A 的安装，但是 B 模块中的依赖 A 仍旧安装在的模块 B 目录下的 node_modules 内，并没有提到项目根目录中。</p>
+<p><strong>由此发现了 npm 一个非常不人性化的地方：npm install 时目录的组织只会考虑 package.json 文件本身，而不会兼顾命令行使用姿势造成的 devDependencies 是否安装的影响。</strong> 这个特点大多情况下并没有什么副作用，但总存在例外的情况，可以查看下面的章节</p>
+<h3 id="4-node-modules-目录组织与-peerDependencies-的坑"><a href="#4-node-modules-目录组织与-peerDependencies-的坑" class="headerlink" title="4. node_modules 目录组织与 peerDependencies 的坑"></a>4. node_modules 目录组织与 peerDependencies 的坑</h3><p>peerDependencies 有什么用？</p>
+<p>考虑下面几个模块的关系：</p>
+<ul>
+<li>babel-plugins 与 babel</li>
+<li>eslint-plugins 与 eslint</li>
+</ul>
+<p>以 babel 为例，其中 babel-plugin 会调用 babel ，但是针对每一个 babel-plugin，是不可能都把 babel 作为 dependency 单独安装一遍的。而 babel-plugin 的不同版本可能会对 babel 版本有要求，在这种情况 babel 会作为 babel-plugin 的 peerDependency 出现。</p>
+<p>在 npm install babel-plugin-A 时，若工程中没有安装对应版本的 babel，则会发出警告，但不会主动安装 babel。</p>
+<p>类似的情况还有 antd 之于 react<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;name&quot;: &quot;antd&quot;,</span><br><span class="line">  &quot;peerDependencies&quot;: &#123;</span><br><span class="line">    &quot;react&quot;: &quot;&gt;=16.0.0&quot;,</span><br><span class="line">    &quot;react-dom&quot;: &quot;&gt;=16.0.0&quot;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>坑来了</strong></p>
+<p>项目中碰到过如下情况，在开发 @scopt/gy-lint 模块时，@scopt/gy-lint 的 package.json 如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;name&quot;: &quot;@scopt/gy-lint&quot;,</span><br><span class="line">    &quot;dependencies&quot;: &#123;</span><br><span class="line">        &quot;eslint&quot;: &quot;5.9.0&quot;,</span><br><span class="line">        &quot;eslint-plugin-import&quot;: &quot;^2.14.0&quot;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>gy 主框架模块的 package.json 如下<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;name&quot;: &quot;@scopt/gy&quot;,</span><br><span class="line">    &quot;dependencies&quot;: &#123;</span><br><span class="line">        &quot;@scopt/gy-lint&quot;: &quot;^1.0.0&quot;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;devDependencies&quot;: &#123;</span><br><span class="line">        &quot;eslint&quot;: &quot;5.8.0&quot;,</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们执行 <code>npm install -g @scopt/gy</code> 时，得到的目录如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">gy</span><br><span class="line">├──package.json</span><br><span class="line">├──node_modules  // 第一级</span><br><span class="line">    ├── eslint-plugin-import@2.14.0</span><br><span class="line">    ├── @scopt/gy-lint</span><br><span class="line">        ├── node_modules // 第二级</span><br><span class="line">            ├── eslint</span><br></pre></td></tr></table></figure></p>
+<p>解释：因为 gy 主框架模块中的 devDepenencies 中存在 eslint 库，即使安装 gy 时并没有安装该 <a href="mailto:eslint@5.8.0" target="_blank" rel="noopener">eslint@5.8.0</a> ，npm 分析 gy-lint 的依赖时依旧会认为外层 <a href="mailto:eslint@5.8.0" target="_blank" rel="noopener">eslint@5.8.0</a> 存在 ，从而把 gy-lint 依赖的 <a href="mailto:eslint@5.9.0" target="_blank" rel="noopener">eslint@5.9.0</a> 安装到了  gy-lint 模块内部的 node_modules 中。</p>
+<p>而 gy-lint 的另外一个依赖 <a href="mailto:eslint-plugin-import@2.14.0" target="_blank" rel="noopener">eslint-plugin-import@2.14.0</a> 会被默认安装到 node_modules 根目录中。</p>
+<p>如此导致：外层的 eslint-plugin-import 插件在 require(‘eslint’) 时会找不到模块 eslint 而报错，因为 eslint 被安装到了 @scopt/gy-lint 内部。</p>
+<p>可以通过统一外层 gy 主框架与 gy-lint 的 eslint 版本以回避这个问题。</p>
+<h3 id="5-npm-ci"><a href="#5-npm-ci" class="headerlink" title="5. npm ci"></a>5. npm ci</h3><p>上面提到，npm install 大部分时间都消耗在依赖树计算分析上，使用 npm ci 可以优化这个过程。使用 npm ci 需要了解以下几点：</p>
+<ul>
+<li>该项目必须有一个package-lock.json 或 npm-shrinkwrap.json。</li>
+<li>如果程序包锁中的依赖项与其中的依赖项不匹配package.json，npm ci则将退出并显示错误，而不是更新程序包锁。</li>
+<li>npm ci 只能一次安装整个项目：使用此命令无法添加单个依赖项。</li>
+<li>如果 node_modules已经存在，它将在npm ci开始安装之前自动删除。</li>
+<li>它永远不会写入package.json或任何包锁：安装基本上是冻结的。</li>
+</ul>
+<p>不满足于 npm ci ，想要安装更快？可以了解一下 gy fastinstall 插件 依赖缓存方案设计 </p>
+<h3 id="6-npm-deprecate"><a href="#6-npm-deprecate" class="headerlink" title="6.npm deprecate"></a>6.npm deprecate</h3><p>开发工具库的同学可以关注一下这个命令，命令用于标记历史的某版本已作废过期，如 </p>
+<p><code>npm deprecate modulename@&quot;&lt;2.0.0&quot; &quot;小于 2.0.0 的版本已经过期，请升级&quot;</code></p>
+</div><div class="tags"><a href="/tags/npm/"><i class="fa fa-tag"></i>npm</a></div><div class="post-nav"><a class="pre" href="/2019/10/21/视频页面内存泄露的追查与解决方案/">视频页面内存泄露的追查与解决方案（记一次 Chrome GC Bug 的发现）</a><a class="next" href="/2018/12/26/webpack-module-resolve/">webpack 模块解析之 commonjs 和 esModule 混用问题</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"><input type="hidden" name="sitesearch" value="http://GaoYYYang.github.io"></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Webpack/">Webpack</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/知识点/">知识点</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/问题排查/">问题排查</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/npm/" style="font-size: 15px;">npm</a> <a href="/tags/webpack/" style="font-size: 15px;">webpack</a> <a href="/tags/chorme-gc/" style="font-size: 15px;">chorme, gc</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2020/07/02/深度实践：提取CSS时的依赖图修正/">Webpack 深度实践：提取CSS时的依赖图修正</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/10/21/视频页面内存泄露的追查与解决方案/">视频页面内存泄露的追查与解决方案（记一次 Chrome GC Bug 的发现）</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/06/28/npm/">你可能不知道的 npm 小规律</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/26/webpack-module-resolve/">webpack 模块解析之 commonjs 和 esModule 混用问题</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/26/webpack-tree-shaking/">Webpack 中 tree shaking 功能实现的局限性</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/18/nodejs-调用-shell-的几个坑/">nodejs 调用 shell 时应该注意的问题</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://github.com/GaoYYYang" title="Github" target="_blank">Github</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/." rel="nofollow">GaoYYYang老司机飙车记录.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.css"><script type="text/javascript" src="/js/copycode.js" successtext="复制成功!"></script><link rel="stylesheet" type="text/css" href="/css/copycode.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>

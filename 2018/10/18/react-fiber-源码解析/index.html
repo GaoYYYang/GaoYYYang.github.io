@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+    <meta charset="UTF-8">
+    <title>react fiber 源码解析 | gaoyang随手记</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="keywords" content="">
+    <meta name="description" content="要解决的问题传统函数调用时涉及到了一个概念：call stack(函数调用栈)。当外层函数调用子函数后，每个子函数都会新建 stack frame 压栈，stack frame 用来描述子函数的信息，子函数执行完毕后出栈，而这个过程是不能停止的。这个现象在大多数情况下是符合预期的，但是在某些 react 场景中碰到了问题：对于结构层次深，dom层级多的组件，一次dom计算可能长达几百毫秒，这段时间内会占用JS进程，造成页面掉帧或卡顿现象。
+解决思路对比传统函数调用：如果我们能控制每次 stack frame 执行时机，每次压栈调用前先查看是否有其他优先级更高的任务需要执行，有的话则把自己挂起，那么就可以把JS线程释放给更...">
+    
+        <link rel="icon" href="/favicon.ico">
+    
+    
+        
+            <link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+        
+            <link rel="stylesheet" href="/css/stage.css">
+        
+            <link rel="stylesheet" href="/css/avatar-bg.css">
+        
+    
+</head>
+</html>
+<body>
+<header id="header">
+    <div class="menu">
+        <i class="fa fa-bars"></i>
+    </div>
+    <div class="header-main">
+        <h1><a href="/">gaoyang随手记</a></h1>
+    </div>
+    <div id="nav">
+        <div class="nav-img" id="nav-img"></div>
+        <div class="sentences">
+            云里写诗，泥里生活，岁月里洒脱。
+        </div>
+    </div>
+</header>
+
+<div id="content-outer">
+    <div id="content-inner">
+        <div class="clearfix">
+    <article id="post">
+        <h1>react fiber 源码解析</h1>
+        <div class="create">
+            <span>创建于</span>
+            
+                <time datetime="2018-10-18T11:58:57.000Z">
+                    2018-10-18
+                </time>
+            
+            
+        </div>
+        <h3 id="要解决的问题"><a href="#要解决的问题" class="headerlink" title="要解决的问题"></a>要解决的问题</h3><p>传统函数调用时涉及到了一个概念：call stack(函数调用栈)。当外层函数调用子函数后，每个子函数都会新建 stack frame 压栈，stack frame 用来描述子函数的信息，子函数执行完毕后出栈，而这个过程是不能停止的。<br>这个现象在大多数情况下是符合预期的，但是在某些 react 场景中碰到了问题：对于结构层次深，dom层级多的组件，一次dom计算可能长达几百毫秒，这段时间内会占用JS进程，造成页面掉帧或卡顿现象。</p>
+<h3 id="解决思路"><a href="#解决思路" class="headerlink" title="解决思路"></a>解决思路</h3><p>对比传统函数调用：如果我们能控制每次 stack frame 执行时机，每次压栈调用前先查看是否有其他优先级更高的任务需要执行，有的话则把自己挂起，那么就可以把JS线程释放给更需要它的任务，待线程空闲时继续执行当前任务。<br>Fiber为解决这个问题而出现，fiber 的概念类似于call stack 中的一次 virtual stack frame。<br>先看看它应该支持的特性：</p>
+<ul>
+<li>可以挂起当前任务，并在将来某个时间点继续执行。</li>
+<li>按照子任务的优先级，先后执行。</li>
+<li>复用上次执行的结果。</li>
+<li>剔除无需执行的任务。</li>
+</ul>
+
+        <div>
+            
+        </div>
+        <div class="bottom-line"></div>
+        
+    <nav id="article-nav">
+        
+            <a href="/2018/10/18/nodejs-调用-shell-的几个坑/" id="article-nav-newer" class="article-nav-link-wrap">
+        <span class="article-nav-title">
+            
+                nodejs 调用 shell 采坑集锦
+            
+        </span>
+                <strong class="article-nav-caption">&gt;</strong>
+            </a>
+        
+        
+    </nav>
+
+
+        
+    </article>
+    <div id="toc">
+        
+            <h2>文章目录</h2>
+            <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#要解决的问题"><span class="toc-number">1.</span> <span class="toc-text">要解决的问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#解决思路"><span class="toc-number">2.</span> <span class="toc-text">解决思路</span></a></li></ol>
+        
+    </div>
+</div>
+
+    </div>
+</div>
+<footer id="footer">
+    <div id="copyright">&copy; gaoyang  2019</div>
+    <div id="theme">
+        Powered by <a href="http://hexo.io">Hexo</a>. Theme by <a href="https://github.com/markyong/hexo-theme-stage">Stage</a>
+    </div>
+</footer>
+<script src="/lib/js/waterrippleeffect.min.js"></script>
+<script src="/js/header-bg.main.js"></script>
+
+    <script src="/lib/js/smooth-scroll.min.js"></script>
+    <script src="/js/toc.main.js"></script>
+
+</body>
+</html>
